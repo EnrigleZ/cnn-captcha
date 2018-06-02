@@ -121,12 +121,12 @@ def train_data_with_cnn():
     conv3 = tf.nn.relu(conv2d(conv2, W_conv3, 'conv3') + B_conv3)
     conv3 = max_pool_2X2(conv3, 'conv3-pool')
     conv3 = tf.nn.dropout(conv3, keep_prob)
-
+    print(conv3.shape)
 
     # fc layer
-    W_fc1 = weight_variable([CAPTCHA_IMAGE_WIDTH*CAPTCHA_IMAGE_HEIGHT/64*64, 1024], 'W_fc1')
+    W_fc1 = weight_variable([8*20*64, 1024], 'W_fc1')
     B_fc1 = bias_variable([1024], 'B_fc1')
-    fc1 = tf.reshape(conv3, [-1, CAPTCHA_IMAGE_WIDTH*CAPTCHA_IMAGE_HEIGHT/64*64])
+    fc1 = tf.reshape(conv3, [-1, 8*20*64])
     fc1 = tf.nn.relu(tf.add(tf.matmul(fc1, W_fc1), B_fc1))
     fc1 = tf.nn.dropout(fc1, keep_prob)
 
@@ -147,7 +147,20 @@ def train_data_with_cnn():
     accuracy = tf.reduce_mean(tf.cast(predict_corrent_vector, tf.float32))
 
     saver = tf.train.Saver()
-    
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+        steps = 0
+        for epoch in range(5000):
+            train_data, train_label = get_next_batch()
+            sess.run(optimizer, feed_dict={X: train_data, Y: train_label, keep_prob: 0.75})
+
+            # calculate accuracy
+            if steps % 20 == 0:
+                test_data, test_label = get_next_batch(type='validate')
+                acc = sess.run(accuracy, feed_dict={X: test_data, Y: test_label, keep_prob: 1})
+                print("steps: ", steps, "accuracy: ", acc)
+
+            steps += 1
 
 
 def get_captcha_from_label(label):
@@ -157,7 +170,4 @@ def get_captcha_from_label(label):
 
 if __name__ == '__main__':
     TRAINING_SET, VALIDATING_SET = divide_dataset()
-    batch_data, batch_label = get_next_batch()
-
-    for index, element in enumerate(batch_label):
-        print(index, get_captcha_from_label(element))
+    train_data_with_cnn()
